@@ -34,7 +34,7 @@ import { TransactionService, Transaction } from "@/lib/transactionService";
 import { UserService } from "@/lib/userService";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { PieChart, Pie, Cell } from 'recharts';
+import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // Chart Components
 
@@ -104,7 +104,8 @@ export default function SalesPage() {
     salesGrowth: 0,
     todaySales: 0,
     weeklySales: 0,
-    monthlySales: 0
+    monthlySales: 0,
+    monthlyTrendChart: [] as { month: string; sales: number }[]
   });
 
   useEffect(() => {
@@ -210,6 +211,28 @@ export default function SalesPage() {
       .filter(t => new Date(t.createdAt) >= monthAgo)
       .reduce((sum, t) => sum + t.totalAmount, 0);
 
+    // Calculate monthly trend for last 12 months
+    const monthlyTrendChart: { month: string; sales: number }[] = [];
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    
+    for (let i = 11; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      const monthSales = transactions
+        .filter(t => {
+          const transactionDate = new Date(t.createdAt);
+          return transactionDate >= monthStart && transactionDate <= monthEnd;
+        })
+        .reduce((sum, t) => sum + t.totalAmount, 0);
+      
+      monthlyTrendChart.push({
+        month: `${monthNames[monthDate.getMonth()]} ${monthDate.getFullYear()}`,
+        sales: Math.round(monthSales)
+      });
+    }
+
     setSalesData({
       totalSales,
       totalTransactions,
@@ -218,7 +241,8 @@ export default function SalesPage() {
       salesGrowth: 0, // TODO: Calculate growth
       todaySales,
       weeklySales,
-      monthlySales
+      monthlySales,
+      monthlyTrendChart
     });
   };
 
@@ -498,14 +522,55 @@ export default function SalesPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64 p-4">
-                      <div className="h-full flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
+                    {salesData.monthlyTrendChart.length > 0 ? (
+                      <div className="w-full h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={salesData.monthlyTrendChart}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-slate-300 dark:stroke-slate-700" />
+                            <XAxis 
+                              dataKey="month" 
+                              className="text-xs"
+                              stroke="#64748b"
+                              tick={{ fill: 'currentColor', fontSize: 11 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={60}
+                            />
+                            <YAxis 
+                              className="text-xs"
+                              stroke="#64748b"
+                              tick={{ fill: 'currentColor', fontSize: 12 }}
+                              tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}k`}
+                            />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                                border: '1px solid #e2e8f0',
+                                borderRadius: '8px',
+                                padding: '8px'
+                              }}
+                              formatter={(value: any) => `₱${value.toLocaleString()}`}
+                              labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="sales" 
+                              stroke="#3B82F6" 
+                              strokeWidth={2}
+                              dot={{ fill: '#3B82F6', r: 3 }}
+                              activeDot={{ r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
                         <div className="text-center">
                           <LineChartIcon className="w-12 h-12 text-slate-400 mx-auto mb-2" />
-                          <p className="text-slate-500 dark:text-slate-400">Sales Trend Chart - Coming Soon</p>
+                          <p className="text-slate-500 dark:text-slate-400">No sales data available</p>
                         </div>
                       </div>
-                    </div>
+                    )}
                   </CardContent>
                 </Card>
 

@@ -28,6 +28,7 @@ import { ProductService } from "@/lib/productService";
 import { UserService } from "@/lib/userService";
 import { TransactionService, Transaction } from "@/lib/transactionService";
 import Link from "next/link";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function AdminPage() {
   const [stats, setStats] = useState({
@@ -38,7 +39,8 @@ export default function AdminPage() {
     todaySales: 0,
     monthlyGrowth: 0,
     recentTransactions: [] as any[],
-    lowStockProducts: [] as any[]
+    lowStockProducts: [] as any[],
+    monthlySalesChart: [] as { date: string; sales: number }[]
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -72,6 +74,7 @@ export default function AdminPage() {
       let todaySales = 0;
       let monthlyGrowth = 0;
       const recentTransactions: any[] = [];
+      let monthlySalesChart: { date: string; sales: number }[] = [];
       
       // Process transactions - handle independently from products/users
       if (transactionsResult.success && transactionsResult.transactions) {
@@ -105,11 +108,12 @@ export default function AdminPage() {
           const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
           const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
           
-          const thisMonthSales = transactions
-            .filter((t: Transaction) => {
-              const transactionDate = new Date(t.createdAt);
-              return transactionDate >= thisMonth;
-            })
+          const thisMonthTransactions = transactions.filter((t: Transaction) => {
+            const transactionDate = new Date(t.createdAt);
+            return transactionDate >= thisMonth;
+          });
+          
+          const thisMonthSales = thisMonthTransactions
             .reduce((sum: number, t: Transaction) => sum + t.totalAmount, 0);
           
           const lastMonthSales = transactions
@@ -123,6 +127,29 @@ export default function AdminPage() {
             monthlyGrowth = ((thisMonthSales - lastMonthSales) / lastMonthSales) * 100;
           } else if (thisMonthSales > 0) {
             monthlyGrowth = 100; // 100% growth if last month was 0
+          }
+          
+          // Calculate daily sales for this month (for chart)
+          monthlySalesChart = [];
+          const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+          
+          for (let day = 1; day <= daysInMonth; day++) {
+            const dayStart = new Date(now.getFullYear(), now.getMonth(), day);
+            dayStart.setHours(0, 0, 0, 0);
+            const dayEnd = new Date(now.getFullYear(), now.getMonth(), day);
+            dayEnd.setHours(23, 59, 59, 999);
+            
+            const daySales = thisMonthTransactions
+              .filter((t: Transaction) => {
+                const transactionDate = new Date(t.createdAt);
+                return transactionDate >= dayStart && transactionDate <= dayEnd;
+              })
+              .reduce((sum: number, t: Transaction) => sum + t.totalAmount, 0);
+            
+            monthlySalesChart.push({
+              date: `${day}`,
+              sales: Math.round(daySales)
+            });
           }
           
           // Get recent transactions (last 4)
@@ -170,7 +197,8 @@ export default function AdminPage() {
           todaySales,
           monthlyGrowth: Math.round(monthlyGrowth * 10) / 10, // Round to 1 decimal
           recentTransactions,
-          lowStockProducts: [...lowStockItems, ...outOfStockItems].slice(0, 5)
+          lowStockProducts: [...lowStockItems, ...outOfStockItems].slice(0, 5),
+          monthlySalesChart
         });
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
@@ -466,7 +494,11 @@ export default function AdminPage() {
                       <p className="text-sm font-medium text-green-700 dark:text-green-300">Monthly Growth</p>
                       <p className="text-2xl font-bold text-green-600">+{stats.monthlyGrowth}%</p>
                     </div>
-                    <ArrowUpRight className="w-6 h-6 text-green-600" />
+                    {stats.monthlyGrowth >= 0 ? (
+                      <ArrowUpRight className="w-6 h-6 text-green-600" />
+                    ) : (
+                      <ArrowDownRight className="w-6 h-6 text-red-600" />
+                    )}
                   </div>
                   <div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <div>
@@ -490,45 +522,96 @@ export default function AdminPage() {
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
                   <BarChart3 className="w-5 h-5" />
-                  <span>System Status</span>
+                  <span>Sales Trend This Month</span>
                 </CardTitle>
                 <CardDescription>
-                  Current system health and status
+                  Daily sales performance showing if trend is up or down
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-700 dark:text-green-300">Database</p>
-                        <p className="text-sm text-green-600">Connected</p>
-                      </div>
+                {stats.monthlySalesChart.length > 0 ? (
+                  <div className="w-full h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={stats.monthlySalesChart}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-slate-300 dark:stroke-slate-700" />
+                        <XAxis 
+                          dataKey="date" 
+                          className="text-xs"
+                          stroke="#64748b"
+                          tick={{ fill: 'currentColor', fontSize: 12 }}
+                        />
+                        <YAxis 
+                          className="text-xs"
+                          stroke="#64748b"
+                          tick={{ fill: 'currentColor', fontSize: 12 }}
+                          tickFormatter={(value) => `₱${(value / 1000).toFixed(0)}k`}
+                        />
+                        <Tooltip 
+                          contentStyle={{ 
+                            backgroundColor: 'rgba(255, 255, 255, 0.95)', 
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            padding: '8px'
+                          }}
+                          formatter={(value: any) => `₱${value.toLocaleString()}`}
+                          labelStyle={{ color: '#1e293b', fontWeight: 'bold' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="sales" 
+                          stroke="#10b981" 
+                          strokeWidth={2}
+                          dot={{ fill: '#10b981', r: 3 }}
+                          activeDot={{ r: 5 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 flex items-center justify-center space-x-4">
+                      {(() => {
+                        const chartData = stats.monthlySalesChart;
+                        if (chartData.length < 2) {
+                          return (
+                            <div className="flex items-center space-x-2 text-slate-500 dark:text-slate-400">
+                              <Clock className="w-4 h-4" />
+                              <span className="text-sm">Not enough data to show trend</span>
+                            </div>
+                          );
+                        }
+                        // Calculate trend from recent days (last 7 days vs previous 7 days if available, or just compare first half vs second half)
+                        const midpoint = Math.floor(chartData.length / 2);
+                        const firstHalf = chartData.slice(0, midpoint).reduce((sum, day) => sum + day.sales, 0);
+                        const secondHalf = chartData.slice(midpoint).reduce((sum, day) => sum + day.sales, 0);
+                        const isTrendingUp = secondHalf > firstHalf;
+                        const trendPercentage = firstHalf > 0 
+                          ? Math.abs(((secondHalf - firstHalf) / firstHalf) * 100)
+                          : secondHalf > 0 ? 100 : 0;
+                        
+                        return (
+                          <div className={`flex items-center space-x-2 ${isTrendingUp ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                            {isTrendingUp ? (
+                              <>
+                                <TrendingUp className="w-5 h-5" />
+                                <span className="text-sm font-semibold">Trending Up {trendPercentage.toFixed(1)}%</span>
+                              </>
+                            ) : (
+                              <>
+                                <TrendingDown className="w-5 h-5" />
+                                <span className="text-sm font-semibold">Trending Down {trendPercentage.toFixed(1)}%</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-600" />
-                      <div>
-                        <p className="font-medium text-green-700 dark:text-green-300">Payment System</p>
-                        <p className="text-sm text-green-600">Operational</p>
-                      </div>
+                ) : (
+                  <div className="h-64 flex items-center justify-center bg-slate-50 dark:bg-slate-700 rounded-lg">
+                    <div className="text-center">
+                      <BarChart3 className="w-12 h-12 text-slate-400 mx-auto mb-2" />
+                      <p className="text-slate-500 dark:text-slate-400">No sales data available for this month</p>
                     </div>
-                    <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <Clock className="w-5 h-5 text-blue-600" />
-                      <div>
-                        <p className="font-medium text-blue-700 dark:text-blue-300">Last Backup</p>
-                        <p className="text-sm text-blue-600">2 hours ago</p>
-                      </div>
-                    </div>
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
