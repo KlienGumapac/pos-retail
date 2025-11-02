@@ -28,7 +28,7 @@ function createWindow() {
   // Load the app
   // In production, load from Vercel deployment
   // Replace 'your-app-name.vercel.app' with your actual Vercel URL
-  const vercelUrl = process.env.VERCEL_URL || 'retail-pos-one.vercel.app';
+  const vercelUrl = process.env.VERCEL_URL || 'pos-retail-two.vercel.app';
   const startUrl = isDev 
     ? 'http://localhost:3000' 
     : `https://${vercelUrl}`;

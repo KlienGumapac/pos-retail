@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiUrl } from "@/lib/apiConfig";
 import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { CashierHeader } from "@/components/cashier/CashierHeader";
@@ -27,14 +28,20 @@ import {
   Receipt,
   Clock,
   Eye,
-  RotateCcw
+  RotateCcw,
+  Share2,
+  Users,
+  X
 } from "lucide-react";
 import JsBarcode from "jsbarcode";
 import { DistributionService, Distribution } from "@/lib/distributionService";
 import { TransactionService, Transaction } from "@/lib/transactionService";
+import { UserService } from "@/lib/userService";
 import { useAuth } from "@/hooks/useAuth";
 import { OrderSummary } from "@/components/cashier/OrderSummary";
 import { useCart } from "@/contexts/CartContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 interface CartItem {
   id: string;
@@ -47,9 +54,10 @@ interface CartItem {
   images?: string[];
 }
 
-export default function CashierStocksPage() {
+function CashierStocksPageContent() {
   const { user } = useAuth();
   const { cart, setCart, addToCart, updateCartQuantity, removeFromCart, clearCart } = useCart();
+  const searchParams = useSearchParams();
   const [distributions, setDistributions] = useState<Distribution[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -58,7 +66,7 @@ export default function CashierStocksPage() {
   const [availableProducts, setAvailableProducts] = useState<any[]>([]);
   const [productCache, setProductCache] = useState<Map<string, any>>(new Map());
   const [isLoadingProducts, setIsLoadingProducts] = useState(false);
-  const [activeTab, setActiveTab] = useState<"stocks" | "transactions" | "returns">("stocks");
+  const [activeTab, setActiveTab] = useState<"stocks" | "transactions" | "returns" | "distribute">("stocks");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -69,12 +77,29 @@ export default function CashierStocksPage() {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
   const [returnedProducts, setReturnedProducts] = useState<any[]>([]);
+  
+  // Distribution state
+  const [cashiers, setCashiers] = useState<any[]>([]);
+  const [selectedReceiverCashier, setSelectedReceiverCashier] = useState<string>("");
+  const [selectedProductForDistribution, setSelectedProductForDistribution] = useState<string>("");
+  const [distributionQuantity, setDistributionQuantity] = useState<string>("");
+  const [distributionItems, setDistributionItems] = useState<any[]>([]);
+  const [isDistributing, setIsDistributing] = useState(false);
+  const [distributionSuccess, setDistributionSuccess] = useState("");
 
   useEffect(() => {
     if (user?.id) {
       loadDistributions();
     }
   }, [user]);
+
+  // Handle tab from URL or sidebar navigation
+  useEffect(() => {
+    const tab = searchParams?.get('tab');
+    if (tab === 'distribute') {
+      setActiveTab('distribute');
+    }
+  }, [searchParams]);
 
   // Memoize filtered products to avoid unnecessary recalculations
   const filteredProducts = useMemo(() => {
@@ -99,6 +124,9 @@ export default function CashierStocksPage() {
       loadTransactions();
     } else if (activeTab === "returns" && user?.id) {
       loadReturnedProducts();
+    } else if (activeTab === "distribute" && user?.id) {
+      loadCashiers();
+      loadDistributions(); // Reload to get latest stock
     }
   }, [activeTab, user]);
 
@@ -512,6 +540,135 @@ export default function CashierStocksPage() {
     }
   };
 
+  const loadCashiers = useCallback(async () => {
+    try {
+      const result = await UserService.getUsers();
+      if (result.success) {
+        // Filter only cashiers, excluding current user
+        const cashierUsers = result.users.filter((u: any) => 
+          u.user_type === 'cashier' && u.isActive && u.id !== user?.id && u._id !== user?.id
+        );
+        setCashiers(cashierUsers);
+      }
+    } catch (err) {
+      console.error('Failed to load cashiers:', err);
+    }
+  }, [user?.id]);
+
+  const handleAddToDistribution = () => {
+    if (!selectedReceiverCashier || !selectedProductForDistribution || !distributionQuantity) {
+      setError('Please select a cashier, product, and enter quantity');
+      return;
+    }
+
+    const product = availableProducts.find(p => p.id === selectedProductForDistribution);
+    const quantity = parseInt(distributionQuantity);
+
+    if (!product) {
+      setError('Product not found');
+      return;
+    }
+
+    if (isNaN(quantity) || quantity <= 0) {
+      setError('Please enter a valid quantity');
+      return;
+    }
+
+    // Check available stock (from distributions)
+    const availableStock = product.stock || 0;
+    if (quantity > availableStock) {
+      setError(`Insufficient stock. Available: ${availableStock} units`);
+      return;
+    }
+
+    // Check if product already exists in distribution
+    const existingItem = distributionItems.find(item => item.productId === selectedProductForDistribution);
+    
+    if (existingItem) {
+      // Update existing item
+      const newTotalQuantity = existingItem.quantity + quantity;
+      if (newTotalQuantity > availableStock) {
+        setError(`Insufficient stock. Available: ${availableStock} units`);
+        return;
+      }
+      setDistributionItems(prev => prev.map(item => 
+        item.productId === selectedProductForDistribution 
+          ? { 
+              ...item, 
+              quantity: newTotalQuantity,
+              totalValue: newTotalQuantity * item.price
+            }
+          : item
+      ));
+    } else {
+      // Add new item
+      setDistributionItems(prev => [...prev, {
+        productId: selectedProductForDistribution,
+        productName: product.name,
+        productSku: product.sku,
+        category: product.category || "Accessories",
+        quantity: quantity,
+        price: product.price,
+        totalValue: product.price * quantity
+      }]);
+    }
+
+    setDistributionSuccess(`Added ${quantity} units of ${product.name} to distribution`);
+    setSelectedProductForDistribution("");
+    setDistributionQuantity("");
+    setError("");
+  };
+
+  const handleRemoveFromDistribution = (productId: string) => {
+    setDistributionItems(prev => prev.filter(item => item.productId !== productId));
+  };
+
+  const handleClearDistribution = () => {
+    setDistributionItems([]);
+    setSelectedProductForDistribution("");
+    setDistributionQuantity("");
+    setDistributionSuccess("");
+  };
+
+  const handleDistributeStocks = async () => {
+    if (!user || !selectedReceiverCashier || distributionItems.length === 0) {
+      setError('Please select a cashier and add items to distribute');
+      return;
+    }
+
+    setIsDistributing(true);
+    setError("");
+    setDistributionSuccess("");
+
+    try {
+      const result = await DistributionService.createCashierDistribution({
+        senderCashierId: user.id,
+        receiverCashierId: selectedReceiverCashier,
+        items: distributionItems,
+        notes: `Distribution from ${user.username || 'cashier'}`
+      });
+
+      if (result.success) {
+        setDistributionSuccess(`Successfully distributed ${distributionItems.length} items to cashier!`);
+        
+        // Clear the distribution form
+        setDistributionItems([]);
+        setSelectedProductForDistribution("");
+        setDistributionQuantity("");
+        setSelectedReceiverCashier("");
+        
+        // Reload distributions to reflect updated stock levels
+        await loadDistributions();
+      } else {
+        setError(result.error || 'Failed to distribute stocks');
+      }
+    } catch (err) {
+      setError('An unexpected error occurred while distributing stocks');
+    } finally {
+      setIsDistributing(false);
+    }
+  };
+
   const loadReturnedProducts = useCallback(async () => {
     if (!user?.id) return;
     
@@ -674,6 +831,19 @@ export default function CashierStocksPage() {
                 <div className="flex items-center space-x-2">
                   <RotateCcw className="w-4 h-4" />
                   <span>Returned Products</span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab("distribute")}
+                className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === "distribute"
+                    ? "border-blue-500 text-blue-600 dark:text-blue-400"
+                    : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-300"
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Share2 className="w-4 h-4" />
+                  <span>Distribute</span>
                 </div>
               </button>
             </div>
@@ -1067,7 +1237,7 @@ export default function CashierStocksPage() {
                   </Card>
                 </div>
               </div>
-            ) : (
+            ) : activeTab === "returns" ? (
               /* Returned Products Tab */
               <div className="flex-1 p-3 sm:p-4 lg:p-6 overflow-y-auto min-h-0">
                 <div className="space-y-6">
@@ -1140,7 +1310,211 @@ export default function CashierStocksPage() {
                   </Card>
                 </div>
               </div>
-            )}
+            ) : activeTab === "distribute" ? (
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto min-h-0">
+                  <div className="max-w-4xl mx-auto space-y-6 pb-8">
+                  <div className="mb-6">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                      Distribute Stocks
+                    </h2>
+                    <p className="text-slate-600 dark:text-slate-400">
+                      Distribute products from your stock to other cashiers
+                    </p>
+                  </div>
+
+                  {/* Error and Success Messages */}
+                  {error && (
+                    <div className="flex items-center space-x-2 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                      <AlertTriangle className="w-5 h-5 text-red-500" />
+                      <span className="text-red-600 dark:text-red-400">{error}</span>
+                    </div>
+                  )}
+
+                  {distributionSuccess && (
+                    <div className="flex items-center space-x-2 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span className="text-green-600 dark:text-green-400">{distributionSuccess}</span>
+                    </div>
+                  )}
+
+                  {/* Select Receiver Cashier */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Users className="w-5 h-5" />
+                        <span>Select Cashier</span>
+                      </CardTitle>
+                      <CardDescription>
+                        Choose a cashier to distribute stocks to
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div>
+                          <Label htmlFor="receiverCashier">Receiver Cashier</Label>
+                          <Select value={selectedReceiverCashier} onValueChange={setSelectedReceiverCashier}>
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select cashier to distribute to" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {cashiers.map((cashier) => (
+                                <SelectItem key={cashier.id || cashier._id} value={cashier.id || cashier._id}>
+                                  {cashier.username || cashier.name} ({cashier.email})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {cashiers.length === 0 && (
+                            <p className="text-sm text-slate-500 mt-1">No other cashiers available</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Select Product and Quantity */}
+                  {selectedReceiverCashier && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <Package className="w-5 h-5" />
+                          <span>Select Products</span>
+                        </CardTitle>
+                        <CardDescription>
+                          Choose products from your stock to distribute
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <Label htmlFor="product">Product</Label>
+                            <Select 
+                              value={selectedProductForDistribution} 
+                              onValueChange={setSelectedProductForDistribution}
+                              disabled={!selectedReceiverCashier || availableProducts.length === 0}
+                            >
+                              <SelectTrigger className="mt-1">
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableProducts.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name} - Stock: {product.stock} - ₱{product.price.toFixed(0)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {availableProducts.length === 0 && (
+                              <p className="text-sm text-slate-500 mt-1">No products in your stock</p>
+                            )}
+                          </div>
+                          <div>
+                            <Label htmlFor="quantity">Quantity</Label>
+                            <Input
+                              id="quantity"
+                              type="number"
+                              placeholder="Enter quantity"
+                              value={distributionQuantity}
+                              onChange={(e) => setDistributionQuantity(e.target.value)}
+                              className="mt-1"
+                              disabled={!selectedProductForDistribution}
+                              min="1"
+                            />
+                            {selectedProductForDistribution && (
+                              <p className="text-xs text-slate-500 mt-1">
+                                Available: {availableProducts.find(p => p.id === selectedProductForDistribution)?.stock || 0} units
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-4">
+                          <Button 
+                            onClick={handleAddToDistribution}
+                            disabled={!selectedProductForDistribution || !distributionQuantity || !selectedReceiverCashier}
+                            className="w-full sm:w-auto"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add to Distribution
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Distribution Items List */}
+                  {distributionItems.length > 0 && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          <ShoppingCart className="w-5 h-5" />
+                          <span>Distribution Items</span>
+                        </CardTitle>
+                        <CardDescription>
+                          Review items to be distributed
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {distributionItems.map((item, index) => (
+                            <div key={index} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                              <div className="flex-1">
+                                <p className="font-medium text-slate-900 dark:text-slate-100">{item.productName}</p>
+                                <p className="text-sm text-slate-500 dark:text-slate-400">SKU: {item.productSku}</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                                  Quantity: {item.quantity} × ₱{item.price.toFixed(0)} = ₱{item.totalValue.toFixed(0)}
+                                </p>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleRemoveFromDistribution(item.productId)}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-6 flex justify-between items-center pt-4 border-t">
+                          <div className="text-sm text-slate-600 dark:text-slate-400">
+                            Total items: {distributionItems.length} | 
+                            Total value: ₱{distributionItems.reduce((sum, item) => sum + item.totalValue, 0).toFixed(0)}
+                          </div>
+                          <div className="flex space-x-3">
+                            <Button 
+                              variant="outline"
+                              onClick={handleClearDistribution}
+                              disabled={distributionItems.length === 0}
+                            >
+                              Clear All
+                            </Button>
+                            <Button 
+                              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+                              disabled={distributionItems.length === 0 || !selectedReceiverCashier || isDistributing}
+                              onClick={handleDistributeStocks}
+                            >
+                              {isDistributing ? (
+                                <div className="flex items-center space-x-2">
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                  <span>Distributing...</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-2">
+                                  <Share2 className="w-4 h-4" />
+                                  <span>Distribute Stocks</span>
+                                </div>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </main>
 
@@ -1483,5 +1857,20 @@ export default function CashierStocksPage() {
         </Dialog>
       </div>
     </ProtectedRoute>
+  );
+}
+
+export default function CashierStocksPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-slate-600 dark:text-slate-400">Loading...</p>
+        </div>
+      </div>
+    }>
+      <CashierStocksPageContent />
+    </Suspense>
   );
 }

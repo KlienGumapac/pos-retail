@@ -9,7 +9,7 @@ export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
     // If loading from file://, we need to use the Vercel URL
     // Replace 'your-app-name.vercel.app' with your actual Vercel deployment URL
-    const vercelUrl = process.env.NEXT_PUBLIC_API_URL || 'https://retail-pos-one.vercel.app/';
+    const vercelUrl = process.env.NEXT_PUBLIC_API_URL || 'https://pos-retail-two.vercel.app/'; 
     return vercelUrl;
   }
   

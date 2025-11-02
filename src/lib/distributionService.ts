@@ -97,4 +97,30 @@ export class DistributionService {
   static async getCashierDistributions(cashierId: string): Promise<DistributionsResponse> {
     return this.getDistributions(cashierId);
   }
+
+  static async createCashierDistribution(data: {
+    senderCashierId: string;
+    receiverCashierId: string;
+    items: DistributionItem[];
+    notes?: string;
+  }): Promise<{ success: boolean; error?: string; message?: string }> {
+    try {
+      const response = await fetch(apiUrl('api/distributions/cashier'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Error creating cashier distribution:', error);
+      return {
+        success: false,
+        error: 'Failed to create distribution'
+      };
+    }
+  }
 }
