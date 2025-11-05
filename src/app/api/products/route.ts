@@ -104,9 +104,9 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     // Validation
-    if (!name || !sku || !price || !cost || !category || stock === undefined) {
+    if (!name || !price || !cost || !category || stock === undefined) {
       return NextResponse.json(
-        { success: false, error: 'Required fields: name, sku, price, cost, category, stock' },
+        { success: false, error: 'Required fields: name, price, cost, category, stock' },
         { status: 400 }
       );
     }
@@ -118,8 +118,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Auto-generate SKU if not provided
+    let finalSku = sku;
+    if (!finalSku) {
+      // Generate SKU: First 3 letters of category + timestamp + random 3 digits
+      const categoryPrefix = category.substring(0, 3).toUpperCase();
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+      finalSku = `${categoryPrefix}-${timestamp}${random}`;
+    } else {
+      finalSku = finalSku.toUpperCase();
+    }
+
     // Check if SKU already exists
-    const existingProduct = await Product.findOne({ sku: sku.toUpperCase() });
+    const existingProduct = await Product.findOne({ sku: finalSku });
     if (existingProduct) {
       return NextResponse.json(
         { success: false, error: 'SKU already exists' },
@@ -142,7 +154,7 @@ export async function POST(request: NextRequest) {
     const product = new Product({
       name: name.trim(),
       description: description?.trim() || '',
-      sku: sku.toUpperCase().trim(),
+      sku: finalSku.trim(),
       barcode: barcode?.trim() || '',
       price: parseFloat(price),
       cost: parseFloat(cost),

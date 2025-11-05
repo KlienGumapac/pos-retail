@@ -30,11 +30,12 @@ const ProductSchema = new Schema<IProduct>({
   },
   sku: {
     type: String,
-    required: [true, 'SKU is required'],
+    required: false, // Auto-generated if not provided
     unique: true,
     trim: true,
     uppercase: true,
-    maxlength: [50, 'SKU cannot exceed 50 characters']
+    maxlength: [50, 'SKU cannot exceed 50 characters'],
+    sparse: true // Allows null/undefined values
   },
   barcode: {
     type: String,

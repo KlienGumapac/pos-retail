@@ -942,9 +942,9 @@ function CashierStocksPageContent() {
               </div>
             )}
 
-            {/* Category Filter Buttons */}
+            {/* Category Filter Buttons and Refresh */}
             <div className="mb-4 sm:mb-6">
-              <div className="flex flex-wrap gap-1 sm:gap-2">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
                 <Button
                   variant={selectedCategory === "all" ? "default" : "outline"}
                   size="sm"
@@ -985,6 +985,21 @@ function CashierStocksPageContent() {
                 >
                   Accessories
                 </Button>
+                <div className="ml-auto">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      await loadDistributions();
+                      await loadAvailableProducts();
+                    }}
+                    disabled={isLoading || isLoadingProducts}
+                    className="flex items-center space-x-1 sm:space-x-2 text-xs px-2 sm:px-3 py-1 sm:py-2"
+                  >
+                    <RefreshCw className={`w-3 h-3 sm:w-4 sm:h-4 ${isLoading || isLoadingProducts ? 'animate-spin' : ''}`} />
+                    <span>Refresh</span>
+                  </Button>
+                </div>
               </div>
             </div>
 

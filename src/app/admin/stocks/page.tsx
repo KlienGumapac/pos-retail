@@ -69,7 +69,6 @@ export default function StocksPage() {
   const [editFormData, setEditFormData] = useState({
     name: "",
     description: "",
-    sku: "",
     barcode: "",
     price: "",
     cost: "",
@@ -83,7 +82,6 @@ export default function StocksPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    sku: "",
     barcode: "",
     price: "",
     cost: "",
@@ -460,7 +458,6 @@ export default function StocksPage() {
     setEditFormData({
       name: product.name,
       description: product.description || "",
-      sku: product.sku,
       barcode: product.barcode || "",
       price: product.price.toString(),
       cost: product.cost.toString(),
@@ -528,7 +525,6 @@ export default function StocksPage() {
       const result = await ProductService.updateProduct(selectedProduct.id, {
         name: editFormData.name,
         description: editFormData.description,
-        sku: editFormData.sku,
         barcode: editFormData.barcode,
         price: parseFloat(editFormData.price),
         cost: parseFloat(editFormData.cost),
@@ -545,7 +541,6 @@ export default function StocksPage() {
         setEditFormData({
           name: "",
           description: "",
-          sku: "",
           barcode: "",
           price: "",
           cost: "",
@@ -612,11 +607,6 @@ export default function StocksPage() {
             word-wrap: break-word;
             max-width: 3.5in;
           }
-          .product-sku {
-            font-size: 10px;
-            color: #666;
-            margin-bottom: 5px;
-          }
           .product-price {
             font-size: 14px;
             font-weight: bold;
@@ -643,7 +633,6 @@ export default function StocksPage() {
       <body>
         <div class="barcode-container">
           <div class="product-name">${selectedProductForPrint.name}</div>
-          <div class="product-sku">SKU: ${selectedProductForPrint.sku}</div>
           <div class="product-price">₱${selectedProductForPrint.price.toFixed(0)}</div>
           <div class="barcode">
             <canvas id="barcode-canvas" width="300" height="60"></canvas>
@@ -693,7 +682,6 @@ export default function StocksPage() {
       const result = await ProductService.createProduct({
         name: formData.name,
         description: formData.description,
-        sku: formData.sku,
         barcode: formData.barcode,
         price: parseFloat(formData.price),
         cost: parseFloat(formData.cost),
@@ -709,7 +697,6 @@ export default function StocksPage() {
         setFormData({
           name: "",
           description: "",
-          sku: "",
           barcode: "",
           price: "",
           cost: "",
@@ -1027,42 +1014,15 @@ export default function StocksPage() {
                   </div>
 
                   {/* Basic Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Product Name *</Label>
-                      <Input 
-                        id="name" 
-                        name="name"
-                        placeholder="Enter product name" 
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        required 
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="sku">SKU *</Label>
-                      <Input 
-                        id="sku" 
-                        name="sku"
-                        placeholder="Enter SKU" 
-                        value={formData.sku}
-                        onChange={handleInputChange}
-                        required 
-                        disabled={isLoading}
-                      />
-                    </div>
-                  </div>
-
                   <div className="space-y-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Textarea 
-                      id="description" 
-                      name="description"
-                      placeholder="Enter product description" 
-                      rows={3}
-                      value={formData.description}
+                    <Label htmlFor="name">Product Name *</Label>
+                    <Input 
+                      id="name" 
+                      name="name"
+                      placeholder="Enter product name" 
+                      value={formData.name}
                       onChange={handleInputChange}
+                      required 
                       disabled={isLoading}
                     />
                   </div>
@@ -1228,9 +1188,6 @@ export default function StocksPage() {
                       <h3 className="font-semibold text-slate-900 dark:text-slate-100 text-xs sm:text-sm line-clamp-2 leading-tight">
                         {product.name}
                       </h3>
-                      
-                      {/* SKU */}
-                      <p className="text-xs text-slate-500 dark:text-slate-400 truncate font-mono">SKU: {product.sku}</p>
 
                       {/* Stock & Price */}
                       <div className="space-y-1 sm:space-y-2">
@@ -1377,9 +1334,6 @@ export default function StocksPage() {
                         Product
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        SKU
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Category
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -1427,11 +1381,6 @@ export default function StocksPage() {
                                   {product.description || 'No description'}
                                 </div>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap">
-                            <div className="text-sm text-slate-900 dark:text-slate-100 font-mono">
-                              {product.sku}
                             </div>
                           </td>
                           <td className="px-4 py-4 whitespace-nowrap">
@@ -1546,9 +1495,6 @@ export default function StocksPage() {
                               {product.description || 'No description'}
                             </p>
                             <div className="flex items-center space-x-2 mt-1">
-                              <span className="text-xs text-slate-600 dark:text-slate-400 font-mono">
-                                SKU: {product.sku}
-                              </span>
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300">
                                 {product.category}
                               </span>
@@ -1714,7 +1660,6 @@ export default function StocksPage() {
                           {selectedProduct.name}
                         </h2>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                          <span className="text-base sm:text-lg text-slate-600 dark:text-slate-400">SKU: {selectedProduct.sku}</span>
                           <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-sm font-medium w-fit">
                             {selectedProduct.category}
                           </span>
@@ -1769,12 +1714,6 @@ export default function StocksPage() {
                           <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Product Name</Label>
                           <p className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100 mt-1 break-words">
                             {selectedProduct.name}
-                          </p>
-                        </div>
-                        <div>
-                          <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">SKU</Label>
-                          <p className="text-sm sm:text-base text-slate-900 dark:text-slate-100 mt-1 font-mono break-all">
-                            {selectedProduct.sku}
                           </p>
                         </div>
                         <div>
@@ -1928,9 +1867,6 @@ export default function StocksPage() {
                   <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <p className="text-sm text-red-600 dark:text-red-400">
                       <strong>Product:</strong> {selectedProduct.name}
-                    </p>
-                    <p className="text-sm text-red-600 dark:text-red-400">
-                      <strong>SKU:</strong> {selectedProduct.sku}
                     </p>
                   </div>
 
@@ -2154,27 +2090,18 @@ export default function StocksPage() {
                 </div>
 
                 {/* Product Information */}
+                <div>
+                  <Label htmlFor="edit-name">Product Name *</Label>
+                  <Input
+                    id="edit-name"
+                    value={editFormData.name}
+                    onChange={(e) => handleEditInputChange('name', e.target.value)}
+                    placeholder="Enter product name"
+                    required
+                  />
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-name">Product Name *</Label>
-                    <Input
-                      id="edit-name"
-                      value={editFormData.name}
-                      onChange={(e) => handleEditInputChange('name', e.target.value)}
-                      placeholder="Enter product name"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-sku">SKU *</Label>
-                    <Input
-                      id="edit-sku"
-                      value={editFormData.sku}
-                      onChange={(e) => handleEditInputChange('sku', e.target.value)}
-                      placeholder="Enter SKU"
-                      required
-                    />
-                  </div>
                   <div>
                     <Label htmlFor="edit-barcode">Barcode</Label>
                     <Input
@@ -2198,18 +2125,6 @@ export default function StocksPage() {
                       </SelectContent>
                     </Select>
                   </div>
-                </div>
-
-                {/* Description */}
-                <div>
-                  <Label htmlFor="edit-description">Description</Label>
-                  <Textarea
-                    id="edit-description"
-                    value={editFormData.description}
-                    onChange={(e) => handleEditInputChange('description', e.target.value)}
-                    placeholder="Enter product description"
-                    rows={3}
-                  />
                 </div>
 
                 {/* Pricing */}
@@ -2629,9 +2544,6 @@ export default function StocksPage() {
                   <div className="p-4 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                     <p className="text-sm text-orange-600 dark:text-orange-400">
                       <strong>Product:</strong> {selectedProductForPrint.name}
-                    </p>
-                    <p className="text-sm text-orange-600 dark:text-orange-400">
-                      <strong>SKU:</strong> {selectedProductForPrint.sku}
                     </p>
                     <p className="text-sm text-orange-600 dark:text-orange-400">
                       <strong>Barcode:</strong> {selectedProductForPrint.barcode || 'No barcode set'}

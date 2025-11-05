@@ -5,7 +5,7 @@ export class ProductService {
   static async createProduct(productData: {
     name: string;
     description?: string;
-    sku: string;
+    sku?: string;
     barcode?: string;
     price: number;
     cost: number;
