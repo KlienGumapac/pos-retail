@@ -104,14 +104,14 @@ export async function POST(request: NextRequest) {
     } = await request.json();
 
     // Validation
-    if (!name || !price || !cost || !category || stock === undefined) {
+    if (!name || !price || !category || stock === undefined) {
       return NextResponse.json(
-        { success: false, error: 'Required fields: name, price, cost, category, stock' },
+        { success: false, error: 'Required fields: name, price, category, stock' },
         { status: 400 }
       );
     }
 
-    if (price < 0 || cost < 0 || stock < 0 || minStock < 0) {
+    if (price < 0 || (cost !== undefined && cost < 0) || stock < 0 || minStock < 0) {
       return NextResponse.json(
         { success: false, error: 'Price, cost, stock, and minStock cannot be negative' },
         { status: 400 }
@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
       sku: finalSku.trim(),
       barcode: barcode?.trim() || '',
       price: parseFloat(price),
-      cost: parseFloat(cost),
+      cost: cost !== undefined ? parseFloat(cost) : 0,
       category: category.trim(),
       stock: parseInt(stock),
       minStock: parseInt(minStock) || 0,

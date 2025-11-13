@@ -201,6 +201,29 @@ export function OrderSummary({
     setIsCancelModalOpen(true);
   };
 
+  const handleDecreaseQuantity = (item: CartItem) => {
+    if (item.quantity <= 1) {
+      handleCancelOrder(item.id);
+      return;
+    }
+
+    onUpdateQuantity(item.id, item.quantity - 1);
+  };
+
+  const handleQuantityInputChange = (item: CartItem, quantity: number) => {
+    if (!Number.isFinite(quantity) || Number.isNaN(quantity)) {
+      return;
+    }
+
+    if (quantity <= 0) {
+      handleCancelOrder(item.id);
+      return;
+    }
+
+    const clampedQuantity = Math.min(quantity, item.stock);
+    onUpdateQuantity(item.id, clampedQuantity);
+  };
+
   const validateCancelCode = async () => {
     if (!cancelCode.trim()) {
       setCancelError("Please enter a cancellation code");
@@ -353,7 +376,7 @@ export function OrderSummary({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                        onClick={() => handleDecreaseQuantity(item)}
                         className="h-6 w-6 p-0"
                       >
                         <Minus className="w-3 h-3" />
@@ -361,7 +384,10 @@ export function OrderSummary({
                       <Input
                         type="number"
                         value={item.quantity}
-                        onChange={(e) => onUpdateQuantity(item.id, parseInt(e.target.value) || 0)}
+                        onChange={(e) => {
+                          const nextQuantity = parseInt(e.target.value, 10);
+                          handleQuantityInputChange(item, nextQuantity);
+                        }}
                         className="w-12 h-6 text-center text-sm"
                         min="1"
                         max={item.stock}

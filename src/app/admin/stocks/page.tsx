@@ -527,7 +527,6 @@ export default function StocksPage() {
         description: editFormData.description,
         barcode: editFormData.barcode,
         price: parseFloat(editFormData.price),
-        cost: parseFloat(editFormData.cost),
         category: editFormData.category,
         stock: parseInt(editFormData.stock),
         minStock: parseInt(editFormData.minStock),
@@ -684,7 +683,6 @@ export default function StocksPage() {
         description: formData.description,
         barcode: formData.barcode,
         price: parseFloat(formData.price),
-        cost: parseFloat(formData.cost),
         category: formData.category,
         stock: parseInt(formData.stock),
         minStock: parseInt(formData.minStock) || 0,
@@ -1056,35 +1054,19 @@ export default function StocksPage() {
                   </div>
 
                   {/* Pricing */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="price">Selling Price (₱) *</Label>
-                      <Input 
-                        id="price" 
-                        name="price"
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        value={formData.price}
-                        onChange={handleInputChange}
-                        required 
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cost">Cost Price (₱) *</Label>
-                      <Input 
-                        id="cost" 
-                        name="cost"
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        value={formData.cost}
-                        onChange={handleInputChange}
-                        required 
-                        disabled={isLoading}
-                      />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="price">Selling Price (₱) *</Label>
+                    <Input 
+                      id="price" 
+                      name="price"
+                      type="number" 
+                      step="0.01" 
+                      placeholder="0.00" 
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      required 
+                      disabled={isLoading}
+                    />
                   </div>
 
                   {/* Stock Information */}
@@ -1740,19 +1722,11 @@ export default function StocksPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-3 sm:space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          <div>
-                            <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Selling Price</Label>
-                            <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400 mt-1">
-                              ₱{selectedProduct.price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Cost Price</Label>
-                            <p className="text-lg sm:text-xl font-bold text-slate-900 dark:text-slate-100 mt-1">
-                              ₱{selectedProduct.cost.toFixed(2)}
-                            </p>
-                          </div>
+                        <div>
+                          <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Selling Price</Label>
+                          <p className="text-lg sm:text-xl font-bold text-green-600 dark:text-green-400 mt-1">
+                            ₱{selectedProduct.price.toFixed(2)}
+                          </p>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                           <div>
@@ -1768,12 +1742,14 @@ export default function StocksPage() {
                             </p>
                           </div>
                         </div>
-                        <div className="pt-2">
-                          <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Profit Margin</Label>
-                          <p className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 mt-1">
-                            {((selectedProduct.price - selectedProduct.cost) / selectedProduct.cost * 100).toFixed(1)}%
-                          </p>
-                        </div>
+                        {selectedProduct.cost && selectedProduct.cost > 0 && (
+                          <div className="pt-2">
+                            <Label className="text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400">Profit Margin</Label>
+                            <p className="text-base sm:text-lg font-semibold text-blue-600 dark:text-blue-400 mt-1">
+                              {((selectedProduct.price - selectedProduct.cost) / selectedProduct.cost * 100).toFixed(1)}%
+                            </p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </div>
@@ -2128,31 +2104,17 @@ export default function StocksPage() {
                 </div>
 
                 {/* Pricing */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="edit-price">Selling Price (₱) *</Label>
-                    <Input
-                      id="edit-price"
-                      type="number"
-                      step="0.01"
-                      value={editFormData.price}
-                      onChange={(e) => handleEditInputChange('price', e.target.value)}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-cost">Cost Price (₱) *</Label>
-                    <Input
-                      id="edit-cost"
-                      type="number"
-                      step="0.01"
-                      value={editFormData.cost}
-                      onChange={(e) => handleEditInputChange('cost', e.target.value)}
-                      placeholder="0.00"
-                      required
-                    />
-                  </div>
+                <div>
+                  <Label htmlFor="edit-price">Selling Price (₱) *</Label>
+                  <Input
+                    id="edit-price"
+                    type="number"
+                    step="0.01"
+                    value={editFormData.price}
+                    onChange={(e) => handleEditInputChange('price', e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
                 </div>
 
                 {/* Stock */}

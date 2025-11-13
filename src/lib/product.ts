@@ -6,7 +6,7 @@ export interface IProduct extends Document {
   sku: string;
   barcode?: string;
   price: number;
-  cost: number;
+  cost?: number;
   category: string;
   stock: number;
   minStock: number;
@@ -50,8 +50,9 @@ const ProductSchema = new Schema<IProduct>({
   },
   cost: {
     type: Number,
-    required: [true, 'Cost is required'],
-    min: [0, 'Cost cannot be negative']
+    required: false,
+    min: [0, 'Cost cannot be negative'],
+    default: 0
   },
   category: {
     type: String,
@@ -100,7 +101,7 @@ ProductSchema.pre('save', function(next) {
 
 // Virtual for profit margin
 ProductSchema.virtual('profitMargin').get(function() {
-  if (this.cost > 0) {
+  if (this.cost && this.cost > 0) {
     return ((this.price - this.cost) / this.cost * 100).toFixed(2);
   }
   return 0;
