@@ -176,19 +176,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update user
-    const updateData: any = {
-      username,
-      email,
-      user_type
-    };
+    // Update user fields
+    user.username = username;
+    user.email = email;
+    user.user_type = user_type;
 
     // Update isActive if provided
     if (typeof isActive === 'boolean') {
-      updateData.isActive = isActive;
+      user.isActive = isActive;
     }
 
-    // Only update password if provided
+    // Only update password if provided (this will trigger the pre-save hook to hash it)
     if (password && password.trim() !== '') {
       if (password.length < 6) {
         return NextResponse.json(
@@ -196,10 +194,11 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      updateData.password = password;
+      user.password = password; // Setting this will trigger the pre-save hook to hash it
     }
 
-    await User.findByIdAndUpdate(id, updateData);
+    // Save the user (this will trigger the pre-save hook to hash the password)
+    await user.save();
 
     // Return updated user without password
     const updatedUser = await User.findById(id).select('-password');
