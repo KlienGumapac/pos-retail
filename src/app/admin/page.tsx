@@ -53,7 +53,7 @@ export default function AdminPage() {
     try {
       // Load products, users, and transactions
       const [productsResult, usersResult, transactionsResult] = await Promise.all([
-        ProductService.getProducts({}),
+        ProductService.getProducts({ limit: 10000 }),
         UserService.getUsers(),
         TransactionService.getTransactions()
       ]);

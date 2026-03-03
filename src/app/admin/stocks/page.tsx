@@ -32,7 +32,9 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
-  BarChart3
+  BarChart3,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import JsBarcode from "jsbarcode";
 import { ProductService } from "@/lib/productService";
@@ -123,11 +125,21 @@ export default function StocksPage() {
     updatedAt: string | Date;
   }>>([]);
 
+  // Pagination (reduces DOM size and lag with 2k+ products)
+  const PAGE_SIZE = 50;
+  const [page, setPage] = useState(1);
+  const [totalProducts, setTotalProducts] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+
   // Load products and cashiers on component mount
   useEffect(() => {
-    loadProducts();
     loadCashiers();
   }, []);
+
+  // Load products when filters or page change
+  useEffect(() => {
+    loadProducts();
+  }, [searchTerm, filterCategory, sortBy, sortOrder, page]);
 
   const loadProducts = async () => {
     setIsLoadingProducts(true);
@@ -136,11 +148,20 @@ export default function StocksPage() {
         search: searchTerm,
         category: filterCategory,
         sortBy,
-        sortOrder
+        sortOrder,
+        page,
+        limit: PAGE_SIZE
       });
       
       if (result.success) {
         setProducts(result.products);
+        if (result.pagination) {
+          setTotalProducts(result.pagination.total);
+          setTotalPages(result.pagination.totalPages);
+        } else {
+          setTotalProducts(result.products?.length ?? 0);
+          setTotalPages(1);
+        }
       } else {
         setError(result.error || 'Failed to load products');
       }
@@ -861,7 +882,7 @@ export default function StocksPage() {
                 <Input
                   placeholder="Search products by name, SKU, or description..."
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
                   className="pl-10 text-sm"
                 />
               </div>
@@ -869,7 +890,7 @@ export default function StocksPage() {
             
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
               <div className="flex gap-2">
-                <Select value={filterCategory} onValueChange={setFilterCategory}>
+                <Select value={filterCategory} onValueChange={(v) => { setFilterCategory(v); setPage(1); }}>
                   <SelectTrigger className="w-full sm:w-40">
                     <Filter className="w-4 h-4 mr-2" />
                     <SelectValue placeholder="Category" />
@@ -882,7 +903,7 @@ export default function StocksPage() {
                   </SelectContent>
                 </Select>
 
-                <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <Select value={sortBy} onValueChange={(value: any) => { setSortBy(value); setPage(1); }}>
                   <SelectTrigger className="w-full sm:w-40">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
@@ -898,7 +919,7 @@ export default function StocksPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                onClick={() => { setSortOrder(sortOrder === "asc" ? "desc" : "asc"); setPage(1); }}
                 className="px-3 w-full sm:w-auto"
               >
                 {sortOrder === "asc" ? <SortAsc className="w-4 h-4" /> : <SortDesc className="w-4 h-4" />}
@@ -1274,6 +1295,40 @@ export default function StocksPage() {
               );
               })}
               
+              {/* Pagination - keeps only one page in DOM for performance */}
+              {totalPages > 1 && (
+                <div className="col-span-full flex flex-col sm:flex-row items-center justify-between gap-3 px-2 py-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 mt-2">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalProducts)} of {totalProducts} products
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="gap-1"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              
               {/* Empty State */}
               {filteredProducts.length === 0 && (
                 <div className="col-span-full flex items-center justify-center py-16">
@@ -1565,6 +1620,40 @@ export default function StocksPage() {
                   })}
                 </div>
               </div>
+              
+              {/* Pagination for Table View */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, totalProducts)} of {totalProducts} products
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                      disabled={page <= 1}
+                      className="gap-1"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    <span className="text-sm text-slate-600 dark:text-slate-400 px-2">
+                      Page {page} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                      className="gap-1"
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
               
               {/* Empty State for Table */}
               {filteredProducts.length === 0 && (

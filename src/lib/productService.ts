@@ -36,6 +36,8 @@ export class ProductService {
     category?: string;
     sortBy?: string;
     sortOrder?: string;
+    page?: number;
+    limit?: number;
   }) {
     try {
       const queryParams = new URLSearchParams();
@@ -44,6 +46,8 @@ export class ProductService {
       if (params?.category) queryParams.append('category', params.category);
       if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
       if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+      if (params?.page != null) queryParams.append('page', String(params.page));
+      if (params?.limit != null) queryParams.append('limit', String(params.limit));
 
       const url = `${apiUrl('api/products')}${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       

@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') || '';
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortOrder = searchParams.get('sortOrder') || 'asc';
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const limit = Math.min(100, Math.max(10, parseInt(searchParams.get('limit') || '50', 10)));
+    const skip = (page - 1) * limit;
 
     // Build query
     let query: any = {};
@@ -41,9 +44,15 @@ export async function GET(request: NextRequest) {
     const sortObj: any = {};
     sortObj[sortBy] = sortOrder === 'asc' ? 1 : -1;
 
-    // Get products
+    // Get total count for pagination
+    const total = await Product.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get products with pagination
     const products = await Product.find(query)
       .sort(sortObj)
+      .skip(skip)
+      .limit(limit)
       .lean();
 
     // Format products
@@ -66,7 +75,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      products: formattedProducts
+      products: formattedProducts,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages
+      }
     });
 
   } catch (error) {
