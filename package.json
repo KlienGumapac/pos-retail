@@ -27,7 +27,7 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.263.1",
     "mongoose": "^7.5.0",
-    "next": "15.5.4",
+    "next": "15.5.9",
     "react": "^18",
     "react-dom": "^18",
     "react-hook-form": "^7.65.0",
@@ -68,7 +68,9 @@
       {
         "from": "public",
         "to": "public",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
@@ -76,7 +78,10 @@
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
       "icon": "public/icon.png"
@@ -85,7 +90,10 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "ia32"]
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ],
       "icon": "public/icon.png"
@@ -101,11 +109,12 @@
       "target": [
         {
           "target": "AppImage",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "public/icon.png"
     }
   }
 }
-
